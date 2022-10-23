@@ -143,7 +143,10 @@ int main(int argc, char **argv){
         strcpy(num_name, c.name);
         str_to_num(num_name);
         if(str_contains(num_name, filter) || str_contains(c.number, filter)){
-            printf("%s, %s", c.name, c.number);
+            //trim trailing newlines
+            c.name[strcspn(c.name, "\n")] = 0;
+            c.number[strcspn(c.number, "\n")] = 0;
+            printf("%s, %s\n", c.name, c.number);
         }
 
     }
