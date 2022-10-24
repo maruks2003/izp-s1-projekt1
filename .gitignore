@@ -1,3 +1,4 @@
 .ccls*
 input/
+tests/
 t9search

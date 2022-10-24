@@ -3,13 +3,10 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
-#define BUFFER_SIZE 100
-// 1. Handle all the inevitable errors 
-//  - velke vstupni cislo - poresit
-//  - vstup neni cislo
-//  - vstup je ve spatnem formatu
-//  - dlouhe radky v souboru
-// 2. Profit
+// How much characters are allowed in search and on each line of the input from
+// stdin + the \n and \0
+#define BUFFER_SIZE 100+2
+// 1. Profit
 
 
 // Defining type to store our contacts for better readability
@@ -18,22 +15,43 @@ typedef struct contact_s {
     char number[BUFFER_SIZE];
 } contact;
 
+bool str_contains(char str[], char filter[]){
+    int key_idx = 0;
+
+    int f_len = strlen(filter);
+    int s_len = strlen(str);
+
+    for(int i = 0; i < s_len; ++i){
+        if(str[i] != filter[key_idx]){
+            key_idx = 0; 
+        }
+        if(str[i] == filter[key_idx]){
+            key_idx += 1;
+            if(key_idx == f_len){
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 // Checks whether the input str[] contains filter[] the filter must appear
 // in the same order but it can be spaced out with non-matching characters
 // in between
-bool str_contains(char str[], char filter[]){
+bool str_contains_gap(char str[], char filter[]){
     char key = filter[0];
 
     int f_len = strlen(filter);
     int s_len = strlen(str);
 
-    if (f_len == 0){
+    if(f_len == 0){
         return true;
     }else{
-        if (s_len > 0){
-            for (int i = 0; i < s_len; ++i){
-                if (str[i] == key){
-                    if(str_contains(&str[i+1], &filter[1])){
+        if(s_len > 0){
+            for(int i = 0; i < s_len; ++i){
+                if(str[i] == key){
+                    if(str_contains_gap(&str[i+1], &filter[1])){
                         return true;
                     }
                 }
@@ -46,109 +64,112 @@ bool str_contains(char str[], char filter[]){
 
 // Reads two lines from stdin and puts them
 // in the contact struct
-contact load_contact(){
+bool load_contact(contact *c){
     char name[BUFFER_SIZE];
-    char *res_a = fgets(name, BUFFER_SIZE, stdin);
     char num[BUFFER_SIZE];
-    char *res_b = fgets(num, BUFFER_SIZE, stdin);
 
-    if(res_a == NULL || res_b == NULL){
-        exit(1);
+    if(fgets(name, BUFFER_SIZE, stdin) == NULL ||
+        fgets(num, BUFFER_SIZE, stdin) == NULL){
+        return false;
     }
 
-    contact c;
-    strcpy(c.name, name);
-    strcpy(c.number, num); 
+    strcpy(c->name, name);
+    strcpy(c->number, num); 
 
-    return c;
+    return true;
 }
 
 // Returns the number corresponding with the letter as specified
 char alph_to_num(char alph){
-    int num;
+
     alph = tolower(alph); 
-    // Ugly but works, maybe find alternate solution
-    switch(alph){
-        case 'a':
-        case 'b':
-        case 'c':
-            num = '2';
-            break;
-        case 'd':
-        case 'e':
-        case 'f':
-            num = '3';
-            break;
-        case 'g':
-        case 'h':
-        case 'i':
-            num = '4';
-            break;
-        case 'j':
-        case 'k':
-        case 'l':
-            num = '5';
-            break;
-        case 'm':
-        case 'n':
-        case 'o':
-            num = '6';
-            break;
-        case 'p':
-        case 'q':
-        case 'r':
-        case 's':
-            num = '7';
-            break;
-        case 't':
-        case 'u':
-        case 'v':
-            num = '8';
-            break;
-        case 'w':
-        case 'x':
-        case 'y':
-        case 'z':
-            num = '9';
-            break;
-        case '+':
-            num = '0';
-            break;
-        default:
-            num = alph;
-            break;
+    int y = 10;
+    int x = 4;
+    char conversion_table[10][4] = {
+        {'+', '0', '0', '0'},   // 0 
+        {'1', '1', '1', '1'},   // 1
+        {'a', 'b', 'c', '2'},   // 2
+        {'d', 'e', 'f', '3'},   // 3
+        {'g', 'h', 'i', '4'},   // 4
+        {'j', 'k', 'l', '5'},   // 5
+        {'m', 'n', 'o', '6'},   // 6
+        {'p', 'q', 'r', 's'},   // 7
+        {'t', 'u', 'v', '8'},   // 8
+        {'w', 'x', 'y', 'z'}    // 9
+    };
+
+    for(int i = 0; i < y; ++i){
+        for(int j = 0; j < x; ++j){
+            if(conversion_table[i][j] == alph){
+                return '0'+i;
+            }
+        }
     }
-    return num;
+    return alph;
+
 }
 
 // Goes through the whole string and translates letters to numbers
 void str_to_num(char *in){
     int len = strlen(in);
     for(int i = 0; i < len; ++i){
-        in[i] = alph_to_num(in[i]);
+        if(!isdigit(in[i])){
+            in[i] = alph_to_num(in[i]);
+        }
     }
+}
+
+// Check whether the string contains purely numbers
+bool str_is_onlynum(char *str){
+    int s_len = strlen(str);
+    for(int i = 0; i < s_len; ++i){
+        if(!isdigit(str[i])){
+            return false;
+        }
+    }
+    return true;
 }
 
 int main(int argc, char **argv){
     char filter[BUFFER_SIZE] = "";
     if(argc > 1){
         strcpy(filter, argv[1]);
+        if(!str_is_onlynum(filter)){
+            fprintf(stderr, "Wrong argument format: %s\n", filter);
+            fprintf(stderr, "Argument can only contain numbers \n");
+            return 1;
+        }
     }
 
-    // Load contact exits on EOF 
-    while(true){
-        contact c = load_contact();
+    bool no_results = true;
+    contact c;
 
-        char num_name[BUFFER_SIZE];
-        strcpy(num_name, c.name);
-        str_to_num(num_name);
-        if(str_contains(num_name, filter) || str_contains(c.number, filter)){
-            //trim trailing newlines
-            c.name[strcspn(c.name, "\n")] = 0;
-            c.number[strcspn(c.number, "\n")] = 0;
+    while(load_contact(&c)){
+        char parsed_name[BUFFER_SIZE];
+        char parsed_num[BUFFER_SIZE];
+
+        strcpy(parsed_name, c.name);
+        strcpy(parsed_num, c.number);
+
+        str_to_num(parsed_name);
+        str_to_num(parsed_num);
+
+        if(str_contains(parsed_name, filter) ||
+            str_contains(parsed_num, filter) ||
+            strcmp(filter, "") == 0){
+            // We can now say that there are at least some results
+            no_results = false;
+            // Trim trailing newlines if the string contains them
+            int name_newline_idx = strcspn(c.name, "\n");
+            int num_newline_idx = strcspn(c.number, "\n");
+            c.name[name_newline_idx] = 0;
+            c.number[num_newline_idx] = 0;
             printf("%s, %s\n", c.name, c.number);
         }
 
+    }
+    if(no_results){
+        printf("Not found\n");
     }
     return 0;
 }
