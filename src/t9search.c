@@ -6,7 +6,11 @@
 // How much characters are allowed in search and on each line of the input from
 // stdin + the \n and \0
 #define BUFFER_SIZE 100+2
-// 1. Profit
+// 1. Poresit chyby
+//  - Prilis dlouhy radek na vstupu podelava vystup
+//  - Nesedici pocet argumentu
+// 2. Implementovat bonusy
+// 3. Profit
 
 
 // Defining type to store our contacts for better readability
@@ -15,14 +19,14 @@ typedef struct contact_s {
     char number[BUFFER_SIZE];
 } contact;
 
-bool str_contains(char str[], char filter[]){
+bool str_contains(char str[], char filter[], bool spaced){
     int key_idx = 0;
 
     int f_len = strlen(filter);
     int s_len = strlen(str);
 
     for(int i = 0; i < s_len; ++i){
-        if(str[i] != filter[key_idx]){
+        if(str[i] != filter[key_idx] && !spaced){
             key_idx = 0; 
         }
         if(str[i] == filter[key_idx]){
@@ -132,11 +136,38 @@ bool str_is_onlynum(char *str){
 
 int main(int argc, char **argv){
     char filter[BUFFER_SIZE] = "";
+    // Toggled by the "-s" flag
+    bool spaced = false;
+    // Toggled by the "-l L" flag L is the number of allowed mistakes in search
+    // NOT IMPLEMENTED
+    // bool lvnstn = false;
+    // int l;
+    if(argc > 2){
+        // 0 is filename last is reserved for the search
+        for(int i = 1; i < argc-1; ++i){
+            if(argv[i][0] != '-'){
+                continue;
+            }
+            int arglen = strlen(argv[i]);
+            for(int j = 1; j < arglen; ++j){
+                switch(argv[i][j]){
+                    case 's':
+                        spaced = true;
+                        break;
+                    // NOT IMPLEMENTED
+                    //case 'l':
+                    default:
+                        fprintf(stderr, "Invalid flag\n");
+                        return 1;
+                }
+            }
+        }
+    }
     if(argc > 1){
-        strcpy(filter, argv[1]);
+        strcpy(filter, argv[argc-1]);
         if(!str_is_onlynum(filter)){
             fprintf(stderr, "Wrong argument format: %s\n", filter);
-            fprintf(stderr, "Argument can only contain numbers \n");
+            fprintf(stderr, "Search can only contain numbers \n");
             return 1;
         }
     }
@@ -154,8 +185,8 @@ int main(int argc, char **argv){
         str_to_num(parsed_name);
         str_to_num(parsed_num);
 
-        if(str_contains(parsed_name, filter) ||
-            str_contains(parsed_num, filter) ||
+        if(str_contains(parsed_name, filter, spaced) ||
+            str_contains(parsed_num, filter, spaced) ||
             strcmp(filter, "") == 0){
             // We can now say that there are at least some results
             no_results = false;
