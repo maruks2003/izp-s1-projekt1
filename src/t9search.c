@@ -1,9 +1,8 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
-// How much characters are allowed in search and on each line of the input from
+// How many characters are allowed in search and on each line of the input from
 // stdin (+ the \n and \0)
 #define BUFFER_SIZE 100+2
 
@@ -18,7 +17,7 @@ typedef struct contact_s {
 } contact;
 
 // Checks whether the str contains the filter, if spaced is true the characters
-// dont need to be next to each other and will still return true as long as they
+// don't need to be next to each other and will still return true as long as they
 // are in the same order as in the filter
 bool str_contains(char str[], char filter[], bool spaced){
     int key_idx = 0;
@@ -141,36 +140,30 @@ int main(int argc, char **argv){
     // Toggled by the "-s" flag
     bool spaced = false;
 
-    // If we have more than 2 arguments we check for flags
+    // Theres only one flag so if we have more than two arguments we exit with
+    // error
+    if(argc > 3){
+        fprintf(stderr, "Too much arguments\n");
+        return 1;
+    }
+    // If we have more than two arguments we check for flag
     if(argc > 2){
-        // Iterate through all arguments that could contain a flag
-        // 0 is filename, last is reserved for the search so we exclude those
-        for(int i = 1; i < argc-1; ++i){
-            if(argv[i][0] != '-'){
-                continue;
-            }
-
-            // Go through the whole argument and find valid flag, or print error
-            // and end end with 1 on invalid flag
-            int arglen = strlen(argv[i]);
-            for(int j = 1; j < arglen; ++j){
-                switch(argv[i][j]){
-                    case 's':
-                        spaced = true;
-                        break;
-                    default:
-                        fprintf(stderr, "Invalid flag: %c\n", argv[i][j]);
-                        return 1;
-                }
-            }
+        spaced = true;
+        if(strcmp(argv[1], "-s\0")){
+            fprintf(stderr, "Invalid flag: %s\n", argv[1]);
+            return 1;
         }
     }
+
     if(argc > 1){
-        strcpy(filter, argv[argc-1]);
-        if(!str_is_onlynum(filter)){
-            fprintf(stderr, "Wrong argument format: %s\n", filter);
-            fprintf(stderr, "Search can only contain numbers \n");
-            return 1;
+        // If the last argument isn't a flag we copy its value and validate it
+        if(strcmp(argv[1], "-s\0") || spaced == true){
+            strcpy(filter, argv[argc-1]);
+            if(!str_is_onlynum(filter)){
+                fprintf(stderr, "Wrong argument format: %s\n", filter);
+                fprintf(stderr, "Search can only contain numbers \n");
+                return 1;
+            }
         }
     }
 
