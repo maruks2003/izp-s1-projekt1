@@ -4,21 +4,22 @@
 #include <string.h>
 #include <ctype.h>
 // How much characters are allowed in search and on each line of the input from
-// stdin + the \n and \0
+// stdin (+ the \n and \0)
 #define BUFFER_SIZE 100+2
-// 1. Poresit chyby
-//  - Prilis dlouhy radek na vstupu podelava vystup
-//  - Nesedici pocet argumentu
-// 2. Implementovat bonusy
-// 3. Profit
 
+// We need to differentiate between error and end of file when loading contacts
+// so we use this enum instead of regular boolean
+enum load_status {ok, end, error};
 
-// Defining type to store our contacts for better readability
+// Struct to store our contact information
 typedef struct contact_s {
     char name[BUFFER_SIZE];
     char number[BUFFER_SIZE];
 } contact;
 
+// Checks whether the str contains the filter, if spaced is true the characters
+// dont need to be next to each other and will still return true as long as they
+// are in the same order as in the filter
 bool str_contains(char str[], char filter[], bool spaced){
     int key_idx = 0;
 
@@ -40,73 +41,61 @@ bool str_contains(char str[], char filter[], bool spaced){
     return false;
 }
 
-// Checks whether the input str[] contains filter[] the filter must appear
-// in the same order but it can be spaced out with non-matching characters
-// in between
-bool str_contains_gap(char str[], char filter[]){
-    char key = filter[0];
-
-    int f_len = strlen(filter);
-    int s_len = strlen(str);
-
-    if(f_len == 0){
-        return true;
-    }else{
-        if(s_len > 0){
-            for(int i = 0; i < s_len; ++i){
-                if(str[i] == key){
-                    if(str_contains_gap(&str[i+1], &filter[1])){
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-
-    return false;
-}
-
 // Reads two lines from stdin and puts them
 // in the contact struct
-bool load_contact(contact *c){
-    char name[BUFFER_SIZE];
-    char num[BUFFER_SIZE];
+enum load_status load_contact(contact *c){
+    char name[BUFFER_SIZE] = "";
+    char num[BUFFER_SIZE] = "";
 
     if(fgets(name, BUFFER_SIZE, stdin) == NULL ||
         fgets(num, BUFFER_SIZE, stdin) == NULL){
-        return false;
+        return end;
     }
+
+    // Trim trailing newlines if they exist otherwise return error - too much
+    // characters on a line
+    int name_newline_idx = strcspn(name, "\n");
+    int num_newline_idx = strcspn(num, "\n");
+    if(name_newline_idx >= BUFFER_SIZE-1 || num_newline_idx >= BUFFER_SIZE-1){
+        return error;
+    }
+    name[name_newline_idx] = '\0';
+    num[num_newline_idx] = '\0';
 
     strcpy(c->name, name);
     strcpy(c->number, num); 
 
-    return true;
+    return ok;
 }
 
-// Returns the number corresponding with the letter as specified
+// Returns the number corresponding with the letter as specified in the
+// assignment
 char alph_to_num(char alph){
 
     alph = tolower(alph); 
     int y = 10;
-    int x = 4;
-    char conversion_table[10][4] = {
-        {'+', '0', '0', '0'},   // 0 
-        {'1', '1', '1', '1'},   // 1
-        {'a', 'b', 'c', '2'},   // 2
-        {'d', 'e', 'f', '3'},   // 3
-        {'g', 'h', 'i', '4'},   // 4
-        {'j', 'k', 'l', '5'},   // 5
-        {'m', 'n', 'o', '6'},   // 6
-        {'p', 'q', 'r', 's'},   // 7
-        {'t', 'u', 'v', '8'},   // 8
-        {'w', 'x', 'y', 'z'}    // 9
+    // Index of the string is the number to which the character will be converted
+    // if it's a part of the string
+    char *conversion_array[10] = {
+        "+",       // 0 
+        "1",       // 1
+        "abc",     // 2
+        "def",     // 3
+        "ghi",     // 4
+        "jkl",     // 5
+        "mno",     // 6
+        "pqrs",    // 7
+        "tuv",     // 8
+        "wxyz"     // 9
     };
 
     for(int i = 0; i < y; ++i){
-        for(int j = 0; j < x; ++j){
-            if(conversion_table[i][j] == alph){
+        int j = 0;
+        while(conversion_array[i][j] != '\0'){
+            if(conversion_array[i][j] == alph){
                 return '0'+i;
             }
+            ++j;
         }
     }
     return alph;
@@ -117,9 +106,10 @@ char alph_to_num(char alph){
 void str_to_num(char *in){
     int len = strlen(in);
     for(int i = 0; i < len; ++i){
-        if(!isdigit(in[i])){
-            in[i] = alph_to_num(in[i]);
+        if(isdigit(in[i])){
+            continue;
         }
+        in[i] = alph_to_num(in[i]);
     }
 }
 
@@ -134,30 +124,42 @@ bool str_is_onlynum(char *str){
     return true;
 }
 
+// Translates all variables in the contact struct using str_to_num()
+// Makes a new copy since we need the original for printing
+contact contact_to_num(contact in_cont){
+    contact num_cont;
+    strcpy(num_cont.name, in_cont.name);
+    strcpy(num_cont.number, in_cont.number);
+    str_to_num(num_cont.name);
+    str_to_num(num_cont.number);
+
+    return num_cont;
+} 
+
 int main(int argc, char **argv){
     char filter[BUFFER_SIZE] = "";
     // Toggled by the "-s" flag
     bool spaced = false;
-    // Toggled by the "-l L" flag L is the number of allowed mistakes in search
-    // NOT IMPLEMENTED
-    // bool lvnstn = false;
-    // int l;
+
+    // If we have more than 2 arguments we check for flags
     if(argc > 2){
-        // 0 is filename last is reserved for the search
+        // Iterate through all arguments that could contain a flag
+        // 0 is filename, last is reserved for the search so we exclude those
         for(int i = 1; i < argc-1; ++i){
             if(argv[i][0] != '-'){
                 continue;
             }
+
+            // Go through the whole argument and find valid flag, or print error
+            // and end end with 1 on invalid flag
             int arglen = strlen(argv[i]);
             for(int j = 1; j < arglen; ++j){
                 switch(argv[i][j]){
                     case 's':
                         spaced = true;
                         break;
-                    // NOT IMPLEMENTED
-                    //case 'l':
                     default:
-                        fprintf(stderr, "Invalid flag\n");
+                        fprintf(stderr, "Invalid flag: %c\n", argv[i][j]);
                         return 1;
                 }
             }
@@ -173,36 +175,30 @@ int main(int argc, char **argv){
     }
 
     bool no_results = true;
-    contact c;
+    contact org_cont;
+    contact num_cont;
+    enum load_status status;
 
-    while(load_contact(&c)){
-        char parsed_name[BUFFER_SIZE];
-        char parsed_num[BUFFER_SIZE];
+    // While load_contact doesn't reach EOF or line that is too big filter the
+    // entries and 
+    while((status = load_contact(&org_cont)) == ok){
+        num_cont = contact_to_num(org_cont);
 
-        strcpy(parsed_name, c.name);
-        strcpy(parsed_num, c.number);
-
-        str_to_num(parsed_name);
-        str_to_num(parsed_num);
-
-        if(str_contains(parsed_name, filter, spaced) ||
-            str_contains(parsed_num, filter, spaced) ||
+        if(str_contains(num_cont.name, filter, spaced) ||
+            str_contains(num_cont.number, filter, spaced) ||
             strcmp(filter, "") == 0){
             // We can now say that there are at least some results
             no_results = false;
-            // Trim trailing newlines if the string contains them
-            int name_newline_idx = strcspn(c.name, "\n");
-            int num_newline_idx = strcspn(c.number, "\n");
-            c.name[name_newline_idx] = 0;
-            c.number[num_newline_idx] = 0;
-            printf("%s, %s\n", c.name, c.number);
+            printf("%s, %s\n", org_cont.name, org_cont.number);
         }
 
+    }
+    if(status == error){
+        fprintf(stderr, "Input line too long\n");
+        return 1;
     }
     if(no_results){
         printf("Not found\n");
     }
     return 0;
 }
-
-
